@@ -11,6 +11,7 @@ class Detection:
     xyxy: tuple
     track_id: int | None = None
     relative_depth: float | None = None
+    distance_m: float | None = None
     direction: str = "unknown"
 
     @property
@@ -99,9 +100,13 @@ class YOLODetector:
         import cv2
         for detection in detections:
             x1, y1, x2, y2 = map(int, detection.xyxy)
-            label = f"{detection.label} {detection.confidence:.2f}"
+            # Build label: "label | xx.xx m | rel yy.yy"
+            label_parts = [detection.label]
+            if detection.distance_m is not None:
+                label_parts.append(f"{detection.distance_m:.2f} m")
             if detection.relative_depth is not None:
-                label += f" | rel {detection.relative_depth:.2f}"
+                label_parts.append(f"rel {detection.relative_depth:.2f}")
+            label = " | ".join(label_parts)
             if detection.track_id is not None:
                 label = f"#{detection.track_id} " + label
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 0), 2)

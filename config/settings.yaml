@@ -16,6 +16,11 @@ perception:
   device: "auto"  # auto, cpu, or cuda:0
   enable_depth: true
   depth_model: "depth-anything/Depth-Anything-V2-Small-hf"
+  depth_mode: "metric"
+  metric_depth_scale: 1.0
+  metric_depth_offset: 0.0
+  metric_warning_distance_m: 1.5
+  metric_critical_distance_m: 0.8
   depth_bounds_ema_alpha: 0.12
   depth_every_n_frames: 3
   enable_tracking: true

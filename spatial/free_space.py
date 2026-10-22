@@ -1,11 +1,13 @@
 """Conservative image-region obstruction heuristic; not floor or occupancy mapping."""
 class FreeSpaceAnalyzer:
     def __init__(self, near_threshold=0.72, large_box_area=0.12, corridor_area=0.025,
-                 corridor_y_start=0.48):
+                 corridor_y_start=0.48, metric_warning_distance_m=1.5, metric_critical_distance_m=0.8):
         self.near_threshold = float(near_threshold)
         self.large_box_area = float(large_box_area)
         self.corridor_area = float(corridor_area)
         self.corridor_y_start = float(corridor_y_start)
+        self.metric_warning_distance_m = float(metric_warning_distance_m)
+        self.metric_critical_distance_m = float(metric_critical_distance_m)
 
     def analyze(self, detections, frame_shape):
         h, w = frame_shape[:2]
@@ -22,10 +24,11 @@ class FreeSpaceAnalyzer:
                               w * 0.38 <= cx <= w * 0.62 and
                               x1 < w * 0.72 and x2 > w * 0.28)
             depth = detection.relative_depth
-            # Relative depth alone is weak evidence. Require lower-centre corridor relevance,
-            # plus either a high relative score with a nontrivial box or a large box on its own.
-            near_by_depth = (lower_corridor and depth is not None and
-                             depth >= self.near_threshold and area >= self.corridor_area)
+            # Prefer metric distance when available, fallback to relative depth.
+            near_by_depth = lower_corridor and (
+                (detection.distance_m is not None and detection.distance_m <= self.metric_warning_distance_m) or
+                (detection.distance_m is None and depth is not None and depth >= self.near_threshold)
+            ) and area >= self.corridor_area
             large_in_corridor = lower_corridor and area >= self.large_box_area
             close = near_by_depth or large_in_corridor
             regions[key].append({"label": detection.label, "close": close, "area": area,
