@@ -16,6 +16,11 @@ DEFAULTS = {
                    "require_confident_free_space": True},
     "voice": {"enabled": True, "speech_recognition": "vosk",
               "vosk_model_path": "models/vosk-model-small-en-us-0.15", "tts_enabled": True, "tts_rate": 175},
+    "scene_description": {
+        "enabled": True, "primary_provider": "gemini", "fallback_provider": "groq",
+        "gemini_model": "gemini-2.5-flash", "groq_model": "llama-3.2-11b-vision-preview",
+        "timeout_seconds": 5.0, "cooldown_seconds": 2.5, "max_retries": 1, "jpeg_quality": 80,
+    },
     "app": {"show_depth_window": True, "show_dashboard": True, "log_level": "INFO"},
 }
 
