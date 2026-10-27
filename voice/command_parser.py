@@ -24,7 +24,10 @@ class CommandParser:
 
         scene_phrases = (
             "path clear", "obstacle ahead", "in front of me", "what is ahead",
-            "what is in front", "describe the scene",
+            "what is in front", "describe the scene", "describe scene",
+            "what is around me", "what is around", "tell me what you see",
+            "what do you see", "describe surroundings", "describe the surroundings",
+            "describe room", "describe the room", "what do i see",
         )
         if any(phrase in normalized for phrase in scene_phrases):
             return {"intent": "scene"}

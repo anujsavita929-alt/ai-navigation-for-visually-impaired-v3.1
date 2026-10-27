@@ -12,6 +12,7 @@ class SceneObject:
     direction: str
     relative_depth: float | None
     track_id: int | None
+    distance_m: float | None = None
 
 
 class WorldModel:
@@ -38,6 +39,7 @@ class WorldModel:
                     direction,
                     detection.relative_depth,
                     detection.track_id,
+                    getattr(detection, "distance_m", None),
                 )
             )
         return {"width": width, "height": height, "objects": objects}

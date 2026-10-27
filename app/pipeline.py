@@ -19,7 +19,7 @@ from voice.text_to_speech import SpeechOutput
 
 
 def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speech=None,
-            voice_listener_factory=None, max_frames=None, display=True):
+            voice_listener_factory=None, scene_worker=None, max_frames=None, display=True):
     """Run the app. Dependency arguments are primarily for deterministic smoke tests."""
     logging.basicConfig(
         level=getattr(logging, str(cfg.get("app", {}).get("log_level", "INFO")).upper(), logging.INFO),
@@ -57,6 +57,19 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
             depth_worker = DepthWorker(estimator)
         except Exception as exc:
             logging.warning("Depth disabled: %s", exc)
+
+    sd_cfg = cfg.get("scene_description", {})
+    if scene_worker is None and sd_cfg.get("enabled", True):
+        try:
+            from scene_description.scene_service import SceneService
+            from scene_description.scene_worker import SceneWorker
+            scene_service = SceneService.from_config(cfg)
+            scene_worker = SceneWorker(
+                service=scene_service,
+                jpeg_quality=sd_cfg.get("jpeg_quality", 80),
+            )
+        except Exception as exc:
+            logging.warning("Scene description disabled: %s", exc)
 
     tracker = SimpleTracker() if perception_cfg.get("enable_tracking", True) else None
     world = WorldModel()
@@ -199,6 +212,12 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
                 decision = navigation.decide(spaces)
                 spatial_latency = time.perf_counter() - tracker_started - tracker_latency
 
+                if scene_worker:
+                    sd_res = scene_worker.poll_result()
+                    if sd_res and sd_res.get("text"):
+                        last_response = sd_res["text"]
+                        speech.say(sd_res["text"])
+
                 while True:
                     try:
                         raw_command = commands.get_nowait()
@@ -210,16 +229,26 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
                     response = ""
 
                     if intent == "scene":
-                        objects = ", ".join(
-                            f"{obj.label} on the {obj.direction}"
-                            for obj in scene["objects"][:6]
-                        )
-                        response = (
-                            "Detected: "
-                            + (objects if objects else "no objects confidently detected")
-                            + ". "
-                            + decision["text"]
-                        )
+                        if scene_worker:
+                            accepted = scene_worker.request(frame, detections, {"free_space": spaces})
+                            if accepted:
+                                response = "Checking surroundings."
+                            else:
+                                response = "Still analyzing the previous scene request."
+                        else:
+                            objects = ", ".join(
+                                f"{obj.label} on the {obj.direction}"
+                                for obj in scene["objects"][:6]
+                            )
+                            response = (
+                                "Detected: "
+                                + (objects if objects else "no objects confidently detected")
+                                + ". "
+                                + decision["text"]
+                            )
+                        last_response = response
+                        speech.say(response)
+                        continue
 
                     elif intent == "distance":
                         # Prefer calibrated metric distances if available
@@ -448,12 +477,26 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
                             + (labels if labels else "no objects detected")
                         )
 
+                    if key == ord("d"):
+                        if scene_worker:
+                            accepted = scene_worker.request(frame, detections, {"free_space": spaces})
+                            if accepted:
+                                speech.say("Checking surroundings.")
+                            else:
+                                speech.say("Still analyzing the previous scene request.")
+                        else:
+                            labels = ", ".join(obj.label for obj in scene["objects"][:6])
+                            speech.say("Detected: " + (labels if labels else "no objects detected"))
+
     finally:
         if listener:
             listener.stop()
 
         if depth_worker:
             depth_worker.close()
+
+        if scene_worker:
+            scene_worker.close()
 
         speech.close()
 
