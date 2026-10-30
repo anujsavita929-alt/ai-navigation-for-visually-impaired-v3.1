@@ -100,12 +100,19 @@ class SceneService:
 
         start_time = time.perf_counter()
 
-        # Determine cloud provider order
-        primary_provider = self.gemini if self.primary_name == "gemini" else self.groq
-        fallback_provider = self.groq if self.primary_name == "gemini" else self.gemini
+        # Determine provider order
+        if self.primary_name == "local":
+            primary_provider = self.local
+            fallback_provider = None
+        elif self.primary_name == "groq":
+            primary_provider = self.groq
+            fallback_provider = self.gemini
+        else:
+            primary_provider = self.gemini
+            fallback_provider = self.groq
 
         # 1. Try Primary Cloud Provider
-        if primary_provider.is_available():
+        if primary_provider and primary_provider.is_available():
             for attempt in range(self.max_retries + 1):
                 try:
                     text = primary_provider.describe(image_bytes, detections, context)
@@ -131,7 +138,7 @@ class SceneService:
                         time.sleep(0.5)
 
         # 2. Try Fallback Cloud Provider
-        if fallback_provider.is_available():
+        if fallback_provider and fallback_provider.is_available():
             for attempt in range(self.max_retries + 1):
                 try:
                     text = fallback_provider.describe(image_bytes, detections, context)

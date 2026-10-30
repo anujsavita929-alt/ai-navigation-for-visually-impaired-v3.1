@@ -190,7 +190,7 @@ class TestSceneDescription(unittest.TestCase):
 
     def test_scene_worker_async_execution(self):
         local = DummyProvider(name="local", response="Async description done")
-        service = SceneService(local_provider=local, cooldown_seconds=0.0)
+        service = SceneService(local_provider=local, primary_name="local", cooldown_seconds=0.0)
 
         results = []
         worker = SceneWorker(service=service, on_completed=lambda r: results.append(r))

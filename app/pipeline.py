@@ -8,7 +8,7 @@ import cv2
 from camera_input.camera import CameraStream
 from navigation.navigation_engine import NavigationEngine
 from navigation.target_guidance import TargetGuidance
-from perception.depth_estimator import DepthEstimator
+from perception.depth_estimator import DepthEstimator, create_depth_estimator
 from perception.depth_worker import DepthWorker
 from perception.detector import YOLODetector
 from perception.tracker import SimpleTracker
@@ -42,18 +42,11 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
             perception_cfg.get("world_classes", []),
         )
 
+    estimator = None
     depth_worker = None
     if perception_cfg.get("enable_depth", True):
         try:
-            estimator = depth_estimator or DepthEstimator(
-                perception_cfg.get("depth_model", "depth-anything/Depth-Anything-V2-Small-hf"),
-                perception_cfg.get("device", "auto"),
-                perception_cfg.get("depth_bounds_ema_alpha", 0.12),
-                perception_cfg.get("depth_mode", "relative"),
-                perception_cfg.get("metric_depth_scale", 1.0),
-                perception_cfg.get("metric_depth_offset", 0.0),
-                None,
-            )
+            estimator = depth_estimator or create_depth_estimator(cfg)
             depth_worker = DepthWorker(estimator)
         except Exception as exc:
             logging.warning("Depth disabled: %s", exc)
@@ -195,7 +188,7 @@ def run_app(cfg, camera_factory=None, detector=None, depth_estimator=None, speec
                     and depth_age_seconds <= max_depth_age_seconds
                 )
 
-                if depth_is_fresh:
+                if depth_is_fresh and estimator is not None:
                     estimator.attach_depth(detections, latest_depth)
                 else:
                     # Do not use stale depth for navigation decisions.

@@ -10,6 +10,13 @@ DEFAULTS = {
                    "confidence": 0.45, "image_size": 640, "device": "auto", "enable_depth": True,
                    "depth_model": "depth-anything/Depth-Anything-V2-Small-hf",
                    "depth_bounds_ema_alpha": 0.12, "depth_every_n_frames": 3, "enable_tracking": True},
+    "zoedepth": {
+        "enabled": True,
+        "model": "Intel/zoedepth-nyu",
+        "distance_scale": 0.5,
+        "distance_offset": 0.0,
+        "device": "auto",
+    },
     "navigation": {"near_relative_depth_threshold": 0.72, "large_box_area_threshold": 0.12,
                    "corridor_box_area_threshold": 0.025, "corridor_y_start": 0.48,
                    "speech_cooldown_seconds": 3.0, "target_guidance_interval_seconds": 2.0,

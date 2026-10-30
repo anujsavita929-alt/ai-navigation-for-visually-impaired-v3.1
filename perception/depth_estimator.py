@@ -194,3 +194,60 @@ class DepthEstimator:
             else:
                 detection.distance_m = None
         return detections
+
+
+def create_depth_estimator(cfg):
+    """Instantiate depth estimator according to configuration and available hardware.
+
+    ZoeDepth path (GPU & CPU):
+      When zoedepth.enabled is true, use ZoeDepthEstimator on cuda:0 if CUDA is available,
+      or on CPU if CUDA is not available.
+
+    Fallback path:
+      If ZoeDepth fails to load or is disabled, fall back to Depth Anything V2 (DepthEstimator)
+      with its existing calibration.json behavior.
+    """
+    perception_cfg = cfg.get("perception", {})
+    zoe_cfg = cfg.get("zoedepth", {})
+
+    cuda_available = False
+    try:
+        import torch
+        cuda_available = torch.cuda.is_available()
+    except Exception:
+        cuda_available = False
+
+    zoe_enabled = bool(zoe_cfg.get("enabled", True))
+
+    if zoe_enabled:
+        try:
+            from perception.zoedepth_estimator import ZoeDepthEstimator
+
+            zoe_device = zoe_cfg.get("device", "auto")
+            if zoe_device == "auto":
+                zoe_device = "cuda:0" if cuda_available else "cpu"
+
+            device_label = "GPU" if zoe_device.startswith("cuda") else "CPU"
+            logging.info("%s path: initializing ZoeDepth on %s", device_label, zoe_device)
+            estimator = ZoeDepthEstimator(
+                model=zoe_cfg.get("model", "Intel/zoedepth-nyu"),
+                device=zoe_device,
+                distance_scale=float(zoe_cfg.get("distance_scale", 0.5)),
+                distance_offset=float(zoe_cfg.get("distance_offset", 0.0)),
+                ema_alpha=float(perception_cfg.get("depth_bounds_ema_alpha", 0.12)),
+            )
+            logging.info("%s path: ZoeDepth metric depth estimator loaded successfully", device_label)
+            return estimator
+        except Exception as exc:
+            logging.warning("ZoeDepth loading failed (%s); falling back to Depth Anything V2: %s", exc, exc)
+
+    logging.info("Fallback path: using Depth Anything V2 (DepthEstimator)")
+    return DepthEstimator(
+        model_id=perception_cfg.get("depth_model", "depth-anything/Depth-Anything-V2-Small-hf"),
+        device=perception_cfg.get("device", "auto"),
+        ema_alpha=perception_cfg.get("depth_bounds_ema_alpha", 0.12),
+        depth_mode=perception_cfg.get("depth_mode", "relative"),
+        metric_scale=perception_cfg.get("metric_depth_scale", 1.0),
+        metric_offset=perception_cfg.get("metric_depth_offset", 0.0),
+        calibration_path=None,
+    )

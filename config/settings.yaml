@@ -24,6 +24,12 @@ perception:
   depth_bounds_ema_alpha: 0.12
   depth_every_n_frames: 3
   enable_tracking: true
+zoedepth:
+  enabled: true
+  model: "Intel/zoedepth-nyu"
+  distance_scale: 0.5
+  distance_offset: 0.0
+  device: "auto"
 
 navigation:
   near_relative_depth_threshold: 0.72
