@@ -20,13 +20,43 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 
 
+def build_scene_prompt(detections: Optional[List[Any]] = None, context: Optional[Dict[str, Any]] = None) -> str:
+    """Build a rich, grounded prompt incorporating detector and corridor evidence."""
+    parts = ["Describe what is directly visible in the scene concisely for a visually impaired user navigating this space."]
+    if detections:
+        det_descs = []
+        for d in detections[:6]:
+            lbl = getattr(d, "label", "")
+            if not lbl:
+                continue
+            direction = getattr(d, "direction", "ahead")
+            dist_m = getattr(d, "distance_m", None)
+            if dist_m is not None:
+                det_descs.append(f"{lbl} ({dist_m:.1f}m {direction})")
+            else:
+                det_descs.append(f"{lbl} ({direction})")
+        if det_descs:
+            parts.append(f"Visual detector identified: {', '.join(det_descs)}.")
+
+    if context:
+        fs = context.get("free_space", {}).get("regions", {})
+        if fs:
+            centre_stat = fs.get("centre", "unknown")
+            if centre_stat == "blocked":
+                parts.append("Caution: Walking corridor ahead is obstructed.")
+            elif centre_stat == "caution":
+                parts.append("Note: Potential obstacle in the walking corridor.")
+
+    return " ".join(parts)
+
+
 class GroqSceneProvider(BaseSceneProvider):
     """Generates scene descriptions using GroqCloud Vision models."""
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model_name: str = "llama-3.2-11b-vision-preview",
+        model_name: str = "qwen/qwen3.8-27b",
         timeout_seconds: float = 6.0,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
     ):
@@ -73,13 +103,7 @@ class GroqSceneProvider(BaseSceneProvider):
 
         client = self._get_client()
 
-        # Build prompt
-        prompt = "Describe the scene ahead for safe navigation."
-        if detections:
-            detected_labels = [getattr(d, "label", "") for d in detections if getattr(d, "label", "")]
-            if detected_labels:
-                unique_labels = list(dict.fromkeys(detected_labels))[:6]
-                prompt += f" Object detector currently flags: {', '.join(unique_labels)}."
+        prompt = build_scene_prompt(detections, context)
 
         base64_image = base64.b64encode(image_bytes).decode("utf-8")
         image_url = f"data:image/jpeg;base64,{base64_image}"
@@ -115,5 +139,15 @@ class GroqSceneProvider(BaseSceneProvider):
             return text
 
         except Exception as exc:
-            logger.warning("Groq scene description failed: %s", exc)
+            err_msg = str(exc)
+            if "401" in err_msg or "Invalid API Key" in err_msg:
+                logger.warning("Groq authentication failed: invalid API key.")
+            elif "429" in err_msg or "rate_limit" in err_msg.lower():
+                logger.warning("Groq rate limit or quota exceeded.")
+            elif "404" in err_msg or "model_decommissioned" in err_msg.lower() or "not found" in err_msg.lower() or "decommissioned" in err_msg.lower():
+                logger.warning("Groq model %s not found or decommissioned.", self.model_name)
+            elif "timed out" in err_msg.lower() or "timeout" in err_msg.lower():
+                logger.warning("Groq request timed out after %.1fs.", self.timeout_seconds)
+            else:
+                logger.warning("Groq scene description failed: %s", exc)
             raise

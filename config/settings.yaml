@@ -54,11 +54,10 @@ app:
 
 scene_description:
   enabled: true
-  primary_provider: "gemini"     # gemini, groq, or local
-  fallback_provider: "groq"      # groq, gemini, or local
-  gemini_model: "gemini-2.5-flash"
-  groq_model: "llama-3.2-11b-vision-preview"
-  timeout_seconds: 5.0
+  primary_provider: "groq"       # groq or local
+  fallback_provider: "local"     # local
+  groq_model: "qwen/qwen3.8-27b"
+  timeout_seconds: 12.0
   cooldown_seconds: 2.5
   max_retries: 1
   jpeg_quality: 80

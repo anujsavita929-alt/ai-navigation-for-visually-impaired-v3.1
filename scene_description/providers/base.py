@@ -11,7 +11,7 @@ class BaseSceneProvider(ABC):
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """Name of the provider (e.g. 'gemini', 'groq', 'local')."""
+        """Name of the provider (e.g. 'groq', 'local')."""
         pass
 
     @abstractmethod

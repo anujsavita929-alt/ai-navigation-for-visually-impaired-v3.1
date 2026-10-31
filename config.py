@@ -24,15 +24,26 @@ DEFAULTS = {
     "voice": {"enabled": True, "speech_recognition": "vosk",
               "vosk_model_path": "models/vosk-model-small-en-us-0.15", "tts_enabled": True, "tts_rate": 175},
     "scene_description": {
-        "enabled": True, "primary_provider": "gemini", "fallback_provider": "groq",
-        "gemini_model": "gemini-2.5-flash", "groq_model": "llama-3.2-11b-vision-preview",
-        "timeout_seconds": 5.0, "cooldown_seconds": 2.5, "max_retries": 1, "jpeg_quality": 80,
+        "enabled": True, "primary_provider": "groq", "fallback_provider": "local",
+        "groq_model": "qwen/qwen3.8-27b",
+        "timeout_seconds": 12.0, "cooldown_seconds": 2.5, "max_retries": 1, "jpeg_quality": 80,
     },
     "app": {"show_depth_window": True, "show_dashboard": True, "log_level": "INFO"},
 }
 
 
 def load_config(path="config/settings.yaml"):
+    # Load .env without overriding already-set environment variables
+    try:
+        from dotenv import load_dotenv
+        env_file = Path(__file__).resolve().parent / ".env"
+        if env_file.exists():
+            load_dotenv(dotenv_path=env_file, override=False)
+        else:
+            load_dotenv(override=False)
+    except ImportError:
+        pass
+
     config = {section: values.copy() for section, values in DEFAULTS.items()}
     config_path = Path(path)
     if not config_path.exists():

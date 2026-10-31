@@ -5,3 +5,9 @@ __pycache__/
 *.pt
 models/vosk-model-*/
 .cache/
+
+# Local backup and experimental project folder
+visionmate_test/
+VisionMate_Test/
+visionmate_fixed.zip
+models/*.zip
